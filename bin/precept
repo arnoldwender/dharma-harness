@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# The first utterance of the Dharma Harness. Wire this as your harness startup
+# banner so it is the first thing emitted, before any agent acts.
+#   - A fixed opening precept (the Gita's karma-yoga) is printed first.
+#   - Below it, a rotating "precept of the day" from precepts.txt (the classics).
+#     Edit precepts.txt to change or extend the rotating pool. See PRECEPTS.md.
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PRECEPTS="$DIR/precepts.txt"
+
+cat <<'EOF'
+
+  \342\230\270   THE DHARMA HARNESS   \342\230\270
+
+  "Let right deeds be thy motive,
+   not the fruit which comes from them."
+                    — Bhagavad Gita 2.47
+EOF
+
+# --- Rotating precept of the day, from precepts.txt ---
+if [ -f "$PRECEPTS" ]; then
+  N=$(grep -c . "$PRECEPTS")
+  if [ "$N" -gt 0 ]; then
+    DAY=$(date +%j | sed 's/^0*//')
+    [ -z "$DAY" ] && DAY=0
+    IDX=$(( (DAY % N) + 1 ))
+    P=$(sed -n "${IDX}p" "$PRECEPTS")
+    [ -n "$P" ] && printf '\n  \342\235\226 %s\n\n' "$P"
+  fi
+fi

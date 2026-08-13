@@ -16,6 +16,21 @@ The fix is small and old-fashioned: a short conduct codex held in context for th
 
 ---
 
+## The four disciplines
+
+Four virtues of the dharmic traditions, one per way the work fails — Devanāgarī, IAST, and
+plain meaning. Each rule in [CODEX.md](CODEX.md) carries an observable **falsifier**.
+
+- **Shaucha** (शौच · *śauca*) *(cleanliness)* — purity of what is left behind. A *niyama* of Patañjali's Yoga.
+- **Viveka** (विवेक · *viveka*) *(judgment)* — discriminating the real from the apparent. The discerning faculty of Vedānta & Yoga.
+- **Satya** (सत्य · *satya*) *(honesty)* — truth in word and report. A *yama*, and a mark of dharma.
+- **Dhriti** (धृति · *dhṛti*) *(persistence)* — steadfast fortitude; the steadiness the Gītā counts as sāttvic (18.33).
+
+**Precedence: Viveka › Dhriti › Shaucha** — discern before endure before cleanse.
+**Satya is never traded** for speed, tidiness, or the appearance of "done." Dhriti is for
+*technical* walls only; it stops at a legitimate gate. The ground the four stand on is
+**dharma** — duty to the craft and to whoever inherits the code. It is not a fifth axis.
+
 ## Two layers
 
 Read the two layers together. The Sanskrit name makes the discipline memorable and gives it edges; the engineering line says exactly what the agent does and exactly how you would catch it failing.
@@ -107,3 +122,9 @@ All scripture is quoted from **public-domain** translations, verified against th
 - Katha Upanishad I.2.2 and Mundaka Upanishad III.1.6 — F. Max Müller, *The Upanishads* (*Sacred Books of the East*, vol. 15, 1879–1884).
 
 Sanskrit terms follow classical usage: *śauca* and *satya* are the *niyama* and *yama* named in Patañjali's *Yoga-sūtra*; *viveka* is Vedāntic discernment (the discrimination of the real from the apparent); *dhṛti* is the fortitude the Gītā counts among sāttvic qualities (18.33) and the tradition numbers among the marks of *dharma*. Devanagari and IAST are given so the terms can be checked, and used with respect — as disciplines to practice, not decoration.
+
+## License
+
+**MIT** — see [LICENSE](LICENSE). A [`CITATION.cff`](CITATION.cff) (CC-BY-4.0) gives the
+citable form. MIT keeps the one thing that actually protects users — the liability
+disclaimer — while letting the codex be pasted anywhere without attribution friction.

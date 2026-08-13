@@ -11,6 +11,17 @@
                             — Bhagavad Gita 2.47, tr. Edwin Arnold
 ```
 
+The Sanskrit of the same verse, quoted in [README.md](README.md) above the translation:
+
+```text
+कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।
+karmaṇy evādhikāras te mā phaleṣu kadācana
+```
+
+The English is Edwin Arnold's, from *The Song Celestial* (1885) — public domain. Arnold was
+knighted in 1888, three years after that edition, so the translation is cited without the
+honorific.
+
 ## The rotating precept
 
 Beneath the fixed opening, the harness prints one rotating line from [`precepts.txt`](precepts.txt)

@@ -34,4 +34,4 @@ IV. DHRITI (धृति, fortitude) — whether you abandon
   4 Fortitude stops at the gate. Persist on walls, not past checkpoints.
   Falsifier: a suppression or skip added to make a red gate look green.
 
-Every rule has an observable falsifier. If one fails, the turn fails.
+Every discipline has an observable falsifier. If one fails, the turn fails.

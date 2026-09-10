@@ -53,11 +53,17 @@ MUTANTS = [
     ("CHECK 4 pd-claim",
      "findings += check_pd_status(sources)",
      "pass"),
-    # SHAPE B: revert to requiring a delimiter on bullets too. This is the exact
-    # state the gate was in when it read the Zen pool and found nothing.
+    # SHAPE B: stop recognising the bullet form, so pool bullets fall back into
+    # the delimiter-requiring flowing path. This is the exact state the gate was
+    # in when it read the Zen pool and found nothing.
     ("SHAPE B undelimited bullet",
-     "if not bullet and not _delimited(quote):",
-     "if not _delimited(quote):"),
+     '        bullet = body.startswith("- ")',
+     "        bullet = False"),
+    # SHAPE A: walk the delimited spans left to right instead of right to left,
+    # which hands back the romanisation of a composite epigraph as the quotation.
+    ("SHAPE A rightmost span wins",
+     "for cand in reversed(list(_SPAN.finditer(body))):",
+     "for cand in list(_SPAN.finditer(body)):"),
     # SHAPE C: keep recognising the attribution line, but never emit the pair.
     ("SHAPE C attribution on its own line",
      "                    out.append((lineno, quote, body.lstrip(\"—– \").strip()))",

@@ -42,17 +42,17 @@ GATE = ROOT / "gate" / "citations.py"
 # cannot collide with a `def` line or a docstring mention of the same name.
 MUTANTS = [
     ("CHECK 1 unsourced-quote",
-     "checked = check_quotes_resolve(sources, findings)",
-     "checked = 0"),
+     "checked, quote_findings = check_quotes_resolve(sources)",
+     "checked, quote_findings = 0, []"),
     ("CHECK 2 incomplete-provenance",
-     "check_provenance_complete(sources, findings)\n",
-     "pass\n"),
+     "findings += check_provenance_complete(sources)",
+     "pass"),
     ("CHECK 3 anachronism",
-     "check_anachronism(sources, findings)\n",
-     "pass\n"),
+     "findings += check_anachronism(sources)",
+     "pass"),
     ("CHECK 4 pd-claim",
-     "check_pd_status(sources, findings)\n",
-     "pass\n"),
+     "findings += check_pd_status(sources)",
+     "pass"),
     # SHAPE B: revert to requiring a delimiter on bullets too. This is the exact
     # state the gate was in when it read the Zen pool and found nothing.
     ("SHAPE B undelimited bullet",

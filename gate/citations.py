@@ -120,16 +120,27 @@ def norm(s: str) -> str:
 
 # --- loading -----------------------------------------------------------------
 
-def load_sources(findings: list[Finding]) -> list[Source]:
+def load_sources() -> tuple[list[Source], list[Finding]]:
     """Read sources/*.yml. Falls back to a minimal parser when PyYAML is absent.
 
     The fallback exists so the gate runs in a bare CI container without a pip
     install. It handles exactly the shape this repo's source files use — scalars
     and a `quotes:` list — and refuses anything else rather than guessing.
+
+    Every function here RETURNS its findings rather than appending to a list the
+    caller handed in. The out-parameter version reads fine and is a genuine
+    undeclared side effect: the signature promises a value and the body quietly
+    rewrites the caller's object. The Dharma edition's own gate
+    (`gate/side_effects.py`) flags exactly that under `mutated-argument`, and it
+    flagged this file — 18 findings — when it was first added. Silencing it in
+    `.conduct/side-effects-allow.txt` was available and is the cheap rescue
+    DHRITI 3 refuses; the accumulator was fixed instead, so the allowlist still
+    holds one entry and `mutated-argument` stays live over this file.
     """
+    findings: list[Finding] = []
     if not SOURCES.is_dir():
         findings.append(Finding("sources", f"no sources/ directory at {SOURCES}"))
-        return []
+        return [], findings
 
     try:
         import yaml  # type: ignore[import-untyped]
@@ -156,7 +167,7 @@ def load_sources(findings: list[Finding]) -> list[Source]:
         out.append(Source(p, data, [str(q) for q in quotes]))
     if not out:
         findings.append(Finding("sources", "sources/ holds no readable *.yml"))
-    return out
+    return out, findings
 
 
 def _parse_minimal_yaml(text: str) -> dict[str, Any]:
@@ -308,8 +319,9 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
 
 # --- checks ------------------------------------------------------------------
 
-def check_quotes_resolve(sources: list[Source], findings: list[Finding]) -> int:
+def check_quotes_resolve(sources: list[Source]) -> tuple[int, list[Finding]]:
     """CHECK 1 — every attributed quotation resolves verbatim to a source."""
+    findings: list[Finding] = []
     haystack = [(s, norm(q)) for s in sources for q in s.quotes]
     checked = 0
     for name in CITED_FILES:
@@ -323,16 +335,17 @@ def check_quotes_resolve(sources: list[Source], findings: list[Finding]) -> int:
                     f'quotation attributed to "{attribution}" resolves to no file in '
                     f"sources/: {quote[:72]}",
                     name, lineno))
-    return checked
+    return checked, findings
 
 
-def check_provenance_complete(sources: list[Source], findings: list[Finding]) -> None:
+def check_provenance_complete(sources: list[Source]) -> list[Finding]:
     """CHECK 2 — a source with missing provenance does not make a quote sourced.
 
     Without this, CHECK 1 is circular: anyone can silence it by pasting the
     quotation into a source file. The provenance is what makes the claim
     auditable by someone who is not us.
     """
+    findings: list[Finding] = []
     for s in sources:
         for fld in REQUIRED_FIELDS:
             if fld not in s.data or s.data[fld] in ("", None, []):
@@ -346,9 +359,10 @@ def check_provenance_complete(sources: list[Source], findings: list[Finding]) ->
                 f"{s.path.name}: marked `provenance: unverified` with no "
                 f"`provenance_note` saying what could not be confirmed",
                 f"sources/{s.path.name}"))
+    return findings
 
 
-def check_anachronism(sources: list[Source], findings: list[Finding]) -> None:
+def check_anachronism(sources: list[Source]) -> list[Finding]:
     """CHECK 3 — the arithmetic that catches what a reader does not.
 
     A work cannot be published before its author was born, and an author cannot
@@ -359,6 +373,7 @@ def check_anachronism(sources: list[Source], findings: list[Finding]) -> None:
     Ancient authors carry negative years (Aristotle: author_born: -384), which is
     why the comparisons are plain integer arithmetic and not date parsing.
     """
+    findings: list[Finding] = []
     for s in sources:
         born, died, year = (s.data.get(k) for k in ("author_born", "author_died", "year"))
         if not all(isinstance(v, int) for v in (born, died, year)):
@@ -387,9 +402,10 @@ def check_anachronism(sources: list[Source], findings: list[Finding]) -> None:
                 "anachronism",
                 f"{name}: edition dated {year} but the translator died {tdied}",
                 f"sources/{name}"))
+    return findings
 
 
-def check_pd_status(sources: list[Source], findings: list[Finding]) -> None:
+def check_pd_status(sources: list[Source]) -> list[Finding]:
     """CHECK 4 — public-domain status is claimed per jurisdiction, not in general.
 
     "Public domain" is not one fact. The US rule is publication-based (pre-1930
@@ -403,6 +419,7 @@ def check_pd_status(sources: list[Source], findings: list[Finding]) -> None:
     under EU copyright until 2042; a source file that reasons only about the
     author would call that public domain and be wrong by two millennia.
     """
+    findings: list[Finding] = []
     for s in sources:
         died = s.data.get("author_died")
         eu = str(s.data.get("pd_status_eu", ""))
@@ -430,15 +447,17 @@ def check_pd_status(sources: list[Source], findings: list[Finding]) -> None:
                 f"{s.path.name}: names a translator but carries no "
                 f"`translator_died` — the translation's own EU term is unknown",
                 f"sources/{s.path.name}"))
+    return findings
 
 
-def check_urls_online(sources: list[Source], findings: list[Finding]) -> None:
+def check_urls_online(sources: list[Source]) -> list[Finding]:
     """CHECK 5 (--online) — every source URL still resolves.
 
     Kept behind a flag on purpose: a gate that needs the network fails open the
     day the network is down, and a link-rot finding is not a reason to block a
     commit that did not touch the link.
     """
+    findings: list[Finding] = []
     import urllib.error
     import urllib.request
 
@@ -464,6 +483,7 @@ def check_urls_online(sources: list[Source], findings: list[Finding]) -> None:
             findings.append(Finding(
                 "dead-source", f"{s.path.name}: {url} unreachable ({exc})",
                 f"sources/{s.path.name}"))
+    return findings
 
 
 # --- output ------------------------------------------------------------------
@@ -500,13 +520,14 @@ def main(argv: list[str] | None = None) -> int:
 
     findings: list[Finding] = []
     try:
-        sources = load_sources(findings)
-        checked = check_quotes_resolve(sources, findings)
-        check_provenance_complete(sources, findings)
-        check_anachronism(sources, findings)
-        check_pd_status(sources, findings)
+        sources, findings = load_sources()
+        checked, quote_findings = check_quotes_resolve(sources)
+        findings += quote_findings
+        findings += check_provenance_complete(sources)
+        findings += check_anachronism(sources)
+        findings += check_pd_status(sources)
         if args.online:
-            check_urls_online(sources, findings)
+            findings += check_urls_online(sources)
     except Exception as exc:                           # noqa: BLE001
         # Exit 2, never 1 and never 0: the gate broke, it did not judge.
         print(f"gate failure: {type(exc).__name__}: {exc}", file=sys.stderr)

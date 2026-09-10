@@ -21,10 +21,11 @@ permissions:
 
 jobs:
   check:
-    # Runner propio: los self-hosted no consumen cuota de Actions y el check lo sigue
-    # emitiendo Actions, que es lo que la proteccion de rama exige por app_id. Con
-    # ubuntu-latest el job muere en 3 s por facturacion y la rama queda incommiteable.
-    runs-on: self-hosted
+    # Corria en `self-hosted`. Medido 2026-09-10: cero runners registrados en
+    # GitHub y ninguno en la maquina. Un check requerido que solo corre en un
+    # runner inexistente no es un gate: es una rama incommiteable. La cuota de
+    # Actions, que fue la razon original, ya no es el problema.
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

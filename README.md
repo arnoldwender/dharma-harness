@@ -126,11 +126,83 @@ One is surfaced per session as the day's first word.
 
 ---
 
+## The gate — the effect you did not declare
+
+*Śauca* asks what a change leaves behind. Most of it is visible in the diff. One
+part is not, and it is the part that bites: the **undeclared side effect** — the
+function whose signature promises one thing while its body quietly does another.
+It sorts the caller's list in place. It keeps one default object that every call
+shares. It writes a module global. It reaches the network because someone
+imported the file. *Karma* is the older way of putting it: every action leaves a
+consequence, and the consequence nobody wrote down is the one that surfaces
+three call sites away, in a test that passes alone and fails in a suite.
+
+[`gate/side_effects.py`](gate/side_effects.py) is the falsifier for that, run
+over a diff:
+
+```sh
+python3 gate/side_effects.py                    # the diff against origin/main
+python3 gate/side_effects.py --base HEAD~3      # against another ref
+python3 gate/side_effects.py --files a.py b.py  # exactly these files
+python3 gate/side_effects.py --sarif out.json   # SARIF 2.1.0 as well
+```
+
+Exit `0` clean, `1` findings, `2` the gate itself failed. The third is kept
+separate on purpose: a checker that returns `1` when it crashed reads as *"I
+found something"*, and one that returns `0` reads as *"clean"* and fails **open**
+— which is the report *satya* says is never tradeable.
+
+It **parses**; it does not grep. `xs.append(1)` is a defect when `xs` is a
+parameter, ordinary work when `xs` is a local, and the right thing when `xs` is
+`self`. No regular expression can tell those three apart. A `python` `ast` walk
+can, and that is the whole difference between this and a linter rule.
+
+| Check | Fires on | Stays quiet for |
+| --- | --- | --- |
+| `mutated-argument` | `xs.append(1)`, `xs.clear()`, `xs[0] = 2`, `del xs[0]`, `xs.update(...)` on a **parameter** | `return [*xs, 1]`; `self.items.append(...)` in a method; any local; `xs = list(xs)` before the mutation |
+| `mutable-default` | `def f(xs=[])`, `def f(d={})`, `def f(s=set())`, `list()` / `dict()` / `defaultdict()` as a default | `def f(xs=None)`; a dataclass `field(default_factory=list)` |
+| `module-state-write` | `global X` then `X = …`; `CACHE[k] = v`; `SEEN.append(x)` on a module-level object | reading module state; a local that shadows a module name |
+| `impure-declared-pure` | `open` / `print` / `requests.` / `subprocess.` / `os.environ[…] =` / a file write inside a function marked `@pure`, `@cache`, `@lru_cache`, or whose docstring says *pure* / *no side effects* | the same calls in a function that never claimed to be a value |
+| `import-time-effect` | a bare call at module level; `requests.get(…)`, `os.makedirs(…)`, `load_dotenv()`, a DB `connect(…)` bound at import — including inside a top-level `try:` | definitions, imports, plain constants, and anything under `if __name__ == "__main__":` |
+| `monkey-patch` | `somemodule.func = …`, `setattr(somemodule, …)` on an **imported** name | attribute writes on an object the function itself made |
+
+**What it will not catch**, named here rather than left for you to find out: an
+`obj.attr = value` write on a received parameter (real, but the configure-an-object
+idiom is common enough that flagging it costs more than it earns); `xs += [1]` on
+a parameter (in-place for a list, a rebinding for an int, and the syntax tree
+cannot say which); a closure mutating the enclosing function's parameter; and
+every language that is not Python — other files are counted and reported as
+skipped, never cleared by omission.
+
+**The allowlist.** [`.conduct/side-effects-allow.txt`](.conduct/side-effects-allow.txt)
+holds one path or regular expression per line; `scripts/check\.py::module-state-write`
+silences one check in one file and leaves the other five live. Suppressions are
+**counted and printed on every run**, clean or not, because an allowlist that
+grows quietly until it covers everything is precisely the cheap rescue *dhṛti*
+rule 3 refuses. This repo currently ships exactly one entry, and it suppresses a
+**true** finding rather than a false positive: `scripts/check.py` accumulates
+into a module-level list, and that file is shared byte-for-byte by the ten
+conduct-harness repos, so rewriting it here alone is the growing fix *śauca*
+rule 3 says to split out and flag instead of smuggling in. The reason is written
+in the file, next to the entry.
+
+**Its own tests.** [`tests/test_side_effects.py`](tests/test_side_effects.py)
+plants each defect and requires red, then plants the clean form of the same idea
+and requires green — a suite that only ever sees defects proves the gate fires
+and nothing else. [`tests/mutation_check.py`](tests/mutation_check.py) then
+deletes each check in turn and requires the suite to go red; a test that still
+passes with the mechanism removed was never testing the mechanism. Both run in
+[`.github/workflows/gate.yml`](.github/workflows/gate.yml) on every push.
+
+---
+
 ## Status
 
-Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**: the automated falsifier checks — lint/dead-code for *śauca*, an irreversibility guard for *viveka*, a gate-vs-claim diff for *satya*, a half-done detector for *dhṛti* — land piece by piece.
+Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**, and one piece has landed: the side-effect gate above.
 
-In the spirit of *satya*: what is written above as **behavior** is live; what is written as **automation** is partly hand-run today. Nothing here is aspirational dressing — the rule is that if a line cannot be falsified, it does not belong in the codex.
+**What that gate automates, stated exactly.** One axis, and only part of it: शौच — what you leave behind — carried from the residue a diff leaves in the tree to the residue a call leaves in the running process. It does **not** decide any of the four numbered *śauca* falsifiers as written: whether a cleanup outgrew its task, whether the dependents of an edited symbol were traced, whether a growing fix was split out, whether a debug print survived. Those are read off a diff by a person. And it does **nothing** for विवेक, सत्य or धृति — no check here can see whether "done" was claimed with no gate output, whether a report omitted a known failure, or whether a test was silenced to buy green. Those three remain behavior, hand-checked. The other planned checks — an irreversibility guard for *viveka*, a gate-vs-claim diff for *satya*, a half-done detector for *dhṛti* — are not written.
+
+In the spirit of *satya*: what is written above as **behavior** is live; what is written as **automation** is one gate and three unwritten ones. Nothing here is aspirational dressing — the rule is that if a line cannot be falsified, it does not belong in the codex.
 
 ---
 

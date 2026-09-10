@@ -31,7 +31,7 @@ The whole is **dharma** — one's duty to the craft and to whoever inherits the 
 
 ## I · Shaucha शौच — Purity
 
-> *"By oneself is one purified... no one can purify another."* — Dhammapada 165 (F. Max Müller, SBE X)
+> *"By oneself one is purified... no one can purify another."* — Dhammapada 165 (F. Max Müller, SBE X)
 
 **Governs what you leave behind.** Heal in passing; make the file cleaner than you found it — but cleanup serves the task, never itself.
 

@@ -1,0 +1,37 @@
+# One quotation, one file, and it exists because of a volume number.
+#
+# The Isha Upanishad is in Muller's Part I - Sacred Books of the East vol. I,
+# 1879 - and NOT in vol. XV with the Katha and the Mundaka. The pool cites all
+# three to "tr. F. Max Muller" without a volume, which is true and incomplete;
+# anyone checking the Isha against vol. XV would not find it and would have
+# every reason to think the line was invented. It is not. It is in the other
+# volume, under a name most readers will not recognise.
+#
+# Verified 2026-09-10 against the scanned printing at the Internet Archive
+# (item wg901). Muller titles it "VAGASANEYI-SAMHITA-UPANISHAD, SOMETIMES
+# CALLED ISAVASYA or ISA-UPANISHAD", and its verse 1 reads:
+#
+#   "All this, whatsoever moves on earth, is to be hidden in the Lord (the
+#    Self). When thou hast surrendered all this, then thou mayest enjoy. Do not
+#    covet the wealth of any man!"
+#
+# The repo quotes the second and third sentences verbatim. The verse number is
+# correct.
+#
+# The archive scan carries the date 1900, which is a later printing; the first
+# edition of vol. I is 1879 and that is the year recorded below. Muller died in
+# 1900, so both dates sit inside his lifetime and neither is posthumous.
+work: "The Upanishads, Part I (Sacred Books of the East, vol. I)"
+author: "Anonymous - the Isha Upanishad (Vagasaneyi-Samhita-Upanishad)"
+author_born: "unknown - anonymous Vedic text, no author to date"
+author_died: "unknown - anonymous Vedic text, no author to date"
+year: 1879
+edition: "Sacred Books of the East vol. I, Oxford - Clarendon Press, 1879. Muller prints the Isha as the Vagasaneyi-Samhita-Upanishad. The Internet Archive copy consulted is the 1900 reprint of the same translation."
+translator: "F. Max Muller"
+translator_died: 1900
+pd_status_us: "Published 1879, pre-1930 - public domain."
+pd_status_eu: "The Sanskrit original is anonymous and ancient. Translator F. Max Muller died 1900; 1900 + 70 = 1970, so the translation has been public domain in the EU since 1971."
+source_url: "https://archive.org/details/wg901"
+provenance: verified
+quotes:
+  - "When thou hast surrendered all this, then thou mayest enjoy. Do not covet the wealth of any man!"

@@ -1,0 +1,62 @@
+# WHY author_born AND author_died ARE PROSE AND NOT NUMBERS.
+#
+# The Dhammapada has no author. It is an anonymous anthology of the Pali canon,
+# and there is no birth or death year that could be written here without being
+# invented. Writing a plausible-looking integer to keep the gate's arithmetic
+# happy would be exactly the fabrication this whole directory exists to prevent,
+# so the field says "unknown" and CHECK 3 skips the author arithmetic on purpose.
+#
+# The compensating control is the translator: CHECK 3 also refuses an edition
+# dated after its translator died, and CHECK 4 refuses a translator with no
+# death year at all. Muller died in 1900 and this edition is 1881, so the
+# edition arithmetic is live even though the author arithmetic cannot be.
+#
+# All six quotations verified 2026-09-10 against the Project Gutenberg text of
+# Muller's translation (ebook 2017), matched WITH their verse numbers:
+#
+#   1    "All that we are is the result of what we have thought: it is founded
+#         on our thoughts, it is made up of our thoughts."          verbatim
+#   81   "As a solid rock is not shaken by the wind, wise people falter not
+#         amidst blame and praise."                                 verbatim
+#   103  "If one man conquer in battle a thousand times thousand men, and if
+#         another conquer himself, he is the greatest of conquerors." verbatim
+#   224  "Speak the truth, do not yield to anger; give, if thou art asked for
+#         little."                                                  verbatim
+#   348  "Give up what is before, give up what is behind, give up what is in
+#         the middle."                                              verbatim
+#
+#   165  CORRECTED. Muller's verse 165 reads, in full:
+#          "By oneself the evil is done, by oneself one suffers; by oneself
+#           evil is left undone, by oneself one is purified. Purity and
+#           impurity belong to oneself, no one can purify another."
+#        CODEX.md carried "By oneself IS ONE purified... no one can purify
+#        another" - the clause inverted into a more lyrical word order. The
+#        verse number, the translator and the volume were all correct; only the
+#        wording had drifted. It was restored to Muller's "by oneself one is
+#        purified" on 2026-09-10. This is a small thing and it is the repo's
+#        own Satya rule 2 - "carry the word unchanged, never improved" - failing
+#        in the epigraph of its own purity chapter, which is why it is written
+#        down here rather than quietly fixed.
+#
+# The ellipsis in the stored quotation marks the elision of the middle of the
+# verse. Everything on either side of it is Muller verbatim.
+work: "The Dhammapada, a Collection of Verses (Sacred Books of the East, vol. X)"
+author: "Anonymous - the Pali Dhammapada, an anthology of the Theravada canon"
+author_born: "unknown - anonymous compilation, traditionally dated to the 3rd century BCE"
+author_died: "unknown - anonymous compilation, no author to date"
+year: 1881
+edition: "Sacred Books of the East vol. X, Oxford - Clarendon Press, 1881. Muller translated the Dhammapada in that volume; Viggo Fausboll translated the Sutta-Nipata bound with it."
+translator: "F. Max Muller"
+translator_died: 1900
+pd_status_us: "Published 1881, pre-1930 - public domain."
+pd_status_eu: "The Pali original is anonymous and ancient. Translator F. Max Muller died 1900; 1900 + 70 = 1970, so the translation has been public domain in the EU since 1971."
+source_url: "https://www.gutenberg.org/ebooks/2017"
+provenance: verified
+quotes:
+  - "All that we are is the result of what we have thought: it is founded on our thoughts, it is made up of our thoughts."
+  - "As a solid rock is not shaken by the wind, wise people falter not amidst blame and praise."
+  - "If one man conquer in battle a thousand times thousand men, and if another conquer himself, he is the greatest of conquerors."
+  - "Speak the truth, do not yield to anger; give, if thou art asked for little."
+  - "Give up what is before, give up what is behind, give up what is in the middle."
+  - "By oneself one is purified... no one can purify another."
+  - "By oneself the evil is done, by oneself one suffers; by oneself evil is left undone, by oneself one is purified. Purity and impurity belong to oneself, no one can purify another."

@@ -67,13 +67,33 @@ from typing import Any
 ROOT = Path(os.environ.get("HARNESS_ROOT") or Path(__file__).resolve().parent.parent)
 SOURCES = ROOT / "sources"
 
-# Files whose attributed quotations must resolve. The pool document is the
-# source of the rotation, so it is checked too — an unsourced line there reaches
-# the user on startup. The list spans the family (PRECEPTS.md in most repos,
-# PROVERBS.md in the Ubuntu edition); a name that does not exist here is skipped,
-# which is what lets one file serve every repo.
-CITED_FILES = ("README.md", "PRECEPTS.md", "PROVERBS.md", "codex-block.md",
-               "CODEX.md", "EXAMPLE.md")
+# Files whose attributed quotations must resolve.
+#
+# DISCOVERED, NOT LISTED — and that is the fix for the worst class of failure
+# this gate has had. A hardcoded list is a silent blind spot: the file it forgets
+# is never opened, so its quotations are never checked, and the run still prints
+# "clean, exit 0". Measured across the family on 2026-09-10, one list or another
+# was blind to `MAXIMS.md` (Agnostic), `BLESSING.md` and `REFERENCE.md`
+# (Angelical) — thirteen and ten attributed lines respectively, reported as a
+# clean pass by a gate that had not opened the file they live in.
+#
+# A gate that passes because it looked at nothing is worse than no gate, because
+# it also issues a green badge. So: every markdown document at the repo root is
+# in scope, plus the paste block. New document, automatically covered.
+EXCLUDED_DOCS = frozenset({
+    # Boilerplate that carries no pool quotations, and whose prose about
+    # licences and conduct would only add noise.
+    "LICENSE.md", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md", "SECURITY.md",
+    "CHANGELOG.md",
+})
+
+
+def cited_files() -> list[str]:
+    """Every root markdown document, plus the paste block. Sorted, so the
+    coverage report reads the same on every run and in every repo."""
+    names = {p.name for p in ROOT.glob("*.md")} - EXCLUDED_DOCS
+    names.add("codex-block.md")                    # .md by extension, plain text by design
+    return sorted(n for n in names if (ROOT / n).exists())
 
 # Every field a source must carry before any quotation in it counts as sourced.
 # `translator` and `edition` are deliberately NOT here: an English original has
@@ -324,6 +344,24 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
         body = line.lstrip("> ").strip()
         if not body:
             continue                                   # a spacer row inside one quote
+
+        # A TABLE ROW IS NOT A QUOTATION, and this one was measured rather than
+        # imagined. The Bushido edition documents its copyright status in a
+        # markdown table nested inside a blockquote, so every row arrives here
+        # looking like blockquote prose:
+        #
+        #     > | 2 × Sun Tzu | Lionel Giles, 1910 | public domain in the
+        #     >   **US**; **not in the EU until 2029** — Giles died 1958 |
+        #
+        # Shape A then finds a bold span closing immediately before an em dash
+        # and an attribution, and demands a source for the string
+        # "**not in the EU until 2029**" attributed to "Giles died 1958 |".
+        # Both findings were false, and both appeared in the table that exists
+        # precisely to be honest about provenance.
+        if body.startswith("|"):
+            pending = None
+            continue
+
         bullet = body.startswith("- ")
         if bullet:
             body = body[2:].strip()
@@ -378,15 +416,23 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
 
 # --- checks ------------------------------------------------------------------
 
-def check_quotes_resolve(sources: list[Source]) -> tuple[int, list[Finding]]:
-    """CHECK 1 — every attributed quotation resolves verbatim to a source."""
+def check_quotes_resolve(sources: list[Source]) -> tuple[dict[str, int], list[Finding]]:
+    """CHECK 1 — every attributed quotation resolves verbatim to a source.
+
+    Returns coverage PER FILE, not a single total, because the number that
+    matters is not how many quotations passed — it is which documents were
+    opened at all. "0 findings" over a file nobody read prints exactly like
+    "0 findings" over a file read line by line, and the reader cannot tell them
+    apart. Handing back the breakdown is what lets `main` say so out loud.
+    """
     findings: list[Finding] = []
     haystack = [(s, norm(q)) for s in sources for q in s.quotes]
-    checked = 0
-    for name in CITED_FILES:
+    coverage: dict[str, int] = {}
+    for name in cited_files():
         path = ROOT / name
-        for lineno, quote, attribution in extract_quotations(path):
-            checked += 1
+        found = extract_quotations(path)
+        coverage[name] = len(found)
+        for lineno, quote, attribution in found:
             needle = norm(quote).rstrip(".,;:!?…")
             if not any(needle in hay or hay in needle for _, hay in haystack):
                 findings.append(Finding(
@@ -394,7 +440,7 @@ def check_quotes_resolve(sources: list[Source]) -> tuple[int, list[Finding]]:
                     f'quotation attributed to "{attribution}" resolves to no file in '
                     f"sources/: {quote[:72]}",
                     name, lineno))
-    return checked, findings
+    return coverage, findings
 
 
 def check_provenance_complete(sources: list[Source]) -> list[Finding]:
@@ -580,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
     findings: list[Finding] = []
     try:
         sources, findings = load_sources()
-        checked, quote_findings = check_quotes_resolve(sources)
+        coverage, quote_findings = check_quotes_resolve(sources)
         findings += quote_findings
         findings += check_provenance_complete(sources)
         findings += check_anachronism(sources)
@@ -596,7 +642,25 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.sarif).write_text(json.dumps(to_sarif(findings), indent=2), encoding="utf-8")
 
     unverified = sum(1 for s in sources if s.data.get("provenance") == "unverified")
+    checked = sum(coverage.values())
     print(f"citations: {len(sources)} source file(s), {checked} attributed quotation(s)")
+
+    # COVERAGE, printed on every run — the line this gate spent a day earning.
+    #
+    # It once reported "0 attributed quotations, clean, exit 0" over a repo whose
+    # eight haiku and eleven proverbs it had never looked at, because their shape
+    # was not one it recognised. The verdict was true and useless: zero findings
+    # over zero coverage prints identically to zero findings over full coverage.
+    #
+    # So the run now says which documents it opened and how many attributed
+    # lines it found in each. A document sitting at 0 is not automatically wrong
+    # — most prose files carry no quotations — but it is now VISIBLE, and a
+    # reader who knows the repo can spot the file that should not be empty.
+    print(f"  read {len(coverage)} document(s): " + ", ".join(
+        f"{n}={c}" for n, c in sorted(coverage.items()) if c) or "  no quotations found")
+    silent = [n for n, c in sorted(coverage.items()) if not c]
+    if silent:
+        print(f"  no attributed lines in: {', '.join(silent)}")
     # Printed on every run, clean or not. An unverified source is not a failure —
     # marking one is the honest outcome the codex asks for — but a count that only
     # appeared on red runs would let the pile grow unwatched.

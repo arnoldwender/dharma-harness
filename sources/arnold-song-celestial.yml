@@ -1,0 +1,56 @@
+# THE HONORIFIC IS THE POINT OF THIS FILE.
+#
+# Edwin Arnold published The Song Celestial in 1885 and was knighted (KCIE) in
+# 1888. Citing the 1885 edition as by "Sir Edwin Arnold" is therefore three
+# years early, and that exact error shipped in this family of repos once
+# already. He held no title when this book appeared; he is cited here without
+# the honorific, deliberately, and PRECEPTS.md says so out loud.
+#
+# No arithmetic in the gate can catch an anachronistic HONORIFIC - only a
+# reader can. What the gate can catch is the neighbouring class of error, an
+# edition dated outside the translator's life, and those dates are recorded
+# below so that check is live: 1885 sits inside 1832-1904.
+#
+# All four quotations verified 2026-09-10 against the Project Gutenberg text of
+# the 1885 edition (ebook 2388), by substring match on the collapsed text:
+#
+#   2.47  "...Let right deeds be / Thy motive, not the fruit which comes from
+#          them." (the line break after "be" is Arnold's; the repo prints the
+#          sentence unlineated, which is why the gate collapses whitespace
+#          before comparing - a verbatim verse quotation fails a naive == )
+#   2.48  "...equable / In good or evil: equability / Is Yog, is piety!"
+#   3.35  "Finally, this is better, that one do / His own task as he may, even
+#          though he fail, / Than take tasks not his own, though they seem good."
+#   6.19  "Steadfast a lamp burns sheltered from the wind; / Such is the
+#          likeness of the Yogi's mind"
+#
+# Two of the four are quoted from mid-sentence, which is why they begin on a
+# lowercase word in Arnold and on a capital here. Nothing else was altered.
+#
+# The Devanagari and IAST printed in README.md above the 2.47 translation were
+# checked separately and are correct as printed:
+#   कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।
+#   karmaṇy evādhikāras te mā phaleṣu kadācana
+# That is the first hemistich of BG 2.47. It is the Sanskrit original, not
+# Arnold - anonymous, ancient, and under no copyright anywhere.
+#
+# author_born / author_died are prose because the Bhagavad Gita has no datable
+# author. Writing a plausible integer to keep an arithmetic check happy would be
+# precisely the fabrication this directory exists to prevent.
+work: "The Song Celestial; or, Bhagavad-Gita (from the Mahabharata)"
+author: "Anonymous - the Bhagavad Gita, traditionally ascribed to Vyasa"
+author_born: "unknown - anonymous Sanskrit epic text, no author to date"
+author_died: "unknown - anonymous Sanskrit epic text, no author to date"
+year: 1885
+edition: "First edition 1885, London - Trubner. Arnold was knighted KCIE in 1888, AFTER this edition, so the honorific does not belong on this citation."
+translator: "Edwin Arnold"
+translator_died: 1904
+pd_status_us: "Published 1885, pre-1930 - public domain."
+pd_status_eu: "The Sanskrit original is anonymous and ancient. Translator Edwin Arnold died 1904; 1904 + 70 = 1974, so this translation has been public domain in the EU since 1975."
+source_url: "https://www.gutenberg.org/ebooks/2388"
+provenance: verified
+quotes:
+  - "Let right deeds be thy motive, not the fruit which comes from them."
+  - "Equability is Yog, is piety!"
+  - "This is better, that one do his own task as he may, even though he fail, than take tasks not his own, though they seem good."
+  - "Steadfast a lamp burns sheltered from the wind; such is the likeness of the Yogi's mind."

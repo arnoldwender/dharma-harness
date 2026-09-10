@@ -196,11 +196,53 @@ passes with the mechanism removed was never testing the mechanism. Both run in
 
 ---
 
+## The second gate — the citation you cannot check
+
+*Satya* rule 4 is "invent nothing — no fabricated file, function, path, citation,
+benchmark, or result." [`gate/citations.py`](gate/citations.py) is the part of
+that rule a machine can decide: **every attributed quotation in this repo
+resolves to a file in [`sources/`](sources/) that says who wrote it, when, in
+what edition, under whose translation, and whether that translation is public
+domain in the US and in the EU separately.**
+
+```sh
+python3 gate/citations.py                  # offline
+python3 gate/citations.py --online         # also resolve every source URL
+python3 gate/citations.py --sarif out.json
+```
+
+Same exit contract: `0` clean, `1` findings, `2` the gate itself failed.
+
+It exists because this repo got it wrong. A sibling edition shipped "Sir Edwin
+Arnold, *The Song Celestial* (1885)" — Arnold was knighted in **1888**, so the
+honorific is three years early — and this repo's own *śauca* epigraph carried
+"By oneself **is one** purified" where Müller wrote "by oneself **one is**
+purified." Nothing was invented in either case; the wording had simply drifted,
+which is how a quotation dies. The gate now checks the arithmetic no reader
+does: a work dated before its author was born, an edition dated after its
+translator died, an EU public-domain claim that never accounts for the
+translator's own copyright term.
+
+**A translation carries a copyright separate from its author's.** Everything
+quoted here is anonymous ancient scripture — the Gita, the Upanishads, the
+Dhammapada — so the author term is not the binding one; Arnold (d. 1904) and
+Max Müller (d. 1900) are, and both are long clear of life-plus-70. That is
+recorded per source rather than asserted once, because the next translation
+added will not be.
+
+**What it does not do.** It cannot tell you a translation is *good*, only that
+it is attributed to someone real who could have written it. It cannot catch an
+anachronistic honorific — no arithmetic can. And a source file marked
+`provenance: unverified` is a live, counted admission, not a failure: the gate
+prints the count on every run precisely so a pile of them cannot grow unwatched.
+
 ## Status
 
-Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**, and one piece has landed: the side-effect gate above.
+Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**, and two pieces have landed: the side-effect gate and the citation gate above.
 
-**What that gate automates, stated exactly.** One axis, and only part of it: शौच — what you leave behind — carried from the residue a diff leaves in the tree to the residue a call leaves in the running process. It does **not** decide any of the four numbered *śauca* falsifiers as written: whether a cleanup outgrew its task, whether the dependents of an edited symbol were traced, whether a growing fix was split out, whether a debug print survived. Those are read off a diff by a person. And it does **nothing** for विवेक, सत्य or धृति — no check here can see whether "done" was claimed with no gate output, whether a report omitted a known failure, or whether a test was silenced to buy green. Those three remain behavior, hand-checked. The other planned checks — an irreversibility guard for *viveka*, a gate-vs-claim diff for *satya*, a half-done detector for *dhṛti* — are not written.
+**What the side-effect gate automates, stated exactly.** One axis, and only part of it: शौच — what you leave behind — carried from the residue a diff leaves in the tree to the residue a call leaves in the running process. It does **not** decide any of the four numbered *śauca* falsifiers as written: whether a cleanup outgrew its task, whether the dependents of an edited symbol were traced, whether a growing fix was split out, whether a debug print survived. Those are read off a diff by a person.
+
+**What the citation gate automates, stated exactly.** Part of one rule: सत्य 4, "invent nothing," and only the *citation* clause of it. It decides whether a quoted line traces to a documented source. It decides nothing about a fabricated file path, a benchmark that was never run, or a result asserted without a gate — the rest of that same rule. And it does **nothing** for विवेक or धृति, nor for सत्य rules 1–3: no check here can see whether "done" was claimed with no gate output, whether a report omitted a known failure, or whether a test was silenced to buy green. Those remain behavior, hand-checked. The other planned checks — an irreversibility guard for *viveka*, a gate-vs-claim diff for the rest of *satya*, a half-done detector for *dhṛti* — are not written.
 
 In the spirit of *satya*: what is written above as **behavior** is live; what is written as **automation** is one gate and three unwritten ones. Nothing here is aspirational dressing — the rule is that if a line cannot be falsified, it does not belong in the codex.
 
@@ -208,10 +250,12 @@ In the spirit of *satya*: what is written above as **behavior** is live; what is
 
 ## Sources & attributions
 
-All scripture is quoted from **public-domain** translations, verified against the source texts:
+All scripture is quoted from **public-domain** translations, verified against the source texts. Every line has a machine-checkable provenance file in [`sources/`](sources/) — edition, translator, death years, and US/EU public-domain status each stated separately — and [`gate/citations.py`](gate/citations.py) refuses any quotation that does not resolve to one:
 
-- Bhagavad Gita 2.47 — Edwin Arnold, *The Song Celestial* (1885).
-- Katha Upanishad 1.3.3 and Mundaka Upanishad 3.1.6 — F. Max Müller, *The Upanishads* (*Sacred Books of the East*, vol. 15, 1879–1884).
+- Bhagavad Gita 2.47, 2.48, 3.35, 6.19 — Edwin Arnold, *The Song Celestial* (1885). Verified against [Project Gutenberg 2388](https://www.gutenberg.org/ebooks/2388). Arnold was knighted in 1888, *after* this edition, so he is cited without the honorific.
+- Dhammapada 1, 81, 103, 165, 224, 348 — F. Max Müller, *The Dhammapada* (*Sacred Books of the East*, vol. X, 1881). Verified against [Project Gutenberg 2017](https://www.gutenberg.org/ebooks/2017).
+- Katha Upanishad 1.2.2, 1.3.3, 1.3.14 and Mundaka Upanishad 3.1.6 — F. Max Müller, *The Upanishads, Part II* (*Sacred Books of the East*, vol. XV, 1884).
+- Isha Upanishad 1 — F. Max Müller, *The Upanishads, Part I* (*Sacred Books of the East*, vol. I, 1879), where it is printed as the *Vāgasaneyi-Saṃhitā-Upanishad*. It is in the **first** volume, not the fifteenth with the Katha and the Mundaka — a reader checking it against vol. XV would not find it and would be right to wonder.
 
 Sanskrit terms follow classical usage: *śauca* and *satya* are the *niyama* and *yama* named in Patañjali's *Yoga-sūtra*; *viveka* is Vedāntic discernment (the discrimination of the real from the apparent); *dhṛti* is the fortitude the Gītā counts among sāttvic qualities (18.33) and the tradition numbers among the marks of *dharma*. Devanagari and IAST are given so the terms can be checked, and used with respect — as disciplines to practice, not decoration.
 

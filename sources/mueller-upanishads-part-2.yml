@@ -1,0 +1,56 @@
+# SBE volume XV, not volume I. The two halves of Muller's Upanishads are
+# separate volumes published five years apart, and they hold different texts.
+# The Katha and the Mundaka are in Part II (vol. XV, 1884); the Isha is in
+# Part I (vol. I, 1879) and lives in its own file next to this one. Citing all
+# of them to one volume would be wrong for whichever half lost the coin toss.
+#
+# author_born / author_died are prose for the same reason as the Dhammapada:
+# the Upanishads are anonymous, and an invented integer to satisfy an
+# arithmetic check is the defect this directory exists to prevent. The
+# translator arithmetic covers the edition instead - see CHECK 3 and CHECK 4.
+#
+# All four quotations verified 2026-09-10 against the scanned first edition at
+# the Internet Archive (item wg915, the 1884 Oxford printing). The scan is OCR
+# and its diacritics are mangled - "KArffA-UPANISHAD" for Katha - so matching
+# was done on the plain-ASCII body of each sentence, which is intact:
+#
+#   Katha 1.3.3   "Know the Self to be sitting in the chariot, the body to be
+#                  the chariot, the intellect (buddhi) the charioteer, and the
+#                  mind the reins."
+#                 The repo drops Muller's parenthetical gloss "(buddhi)".
+#
+#   Katha 1.2.2   "Yea, the wise prefers the good to the pleasant, but the fool
+#                  chooses the pleasant through greed and avarice."
+#                 The repo drops the leading "Yea," and capitalises what
+#                 follows. Nothing else differs.
+#
+#   Katha 1.3.14  "Rise, awake! having obtained your boons, understand them!
+#                  The sharp edge of a razor is difficult to pass over; thus
+#                  the wise say the path (to the Self) is hard."
+#                 The repo's ellipsis marks the elision of the middle clause;
+#                 it also drops Muller's gloss "(to the Self)".
+#
+#   Mundaka 3.1.6 "The true prevails, not the untrue; by the true the path is
+#                  laid out..."                                     verbatim
+#
+# The three small liberties are recorded here rather than smoothed over. Each
+# is an elision of a bracketed gloss or a leading connective, none changes the
+# sense, and all three are the kind of thing that is invisible unless somebody
+# writes it down - which is what this file is for.
+work: "The Upanishads, Part II (Sacred Books of the East, vol. XV)"
+author: "Anonymous - the Katha and Mundaka Upanishads"
+author_born: "unknown - anonymous Vedic texts, no author to date"
+author_died: "unknown - anonymous Vedic texts, no author to date"
+year: 1884
+edition: "Sacred Books of the East vol. XV, Oxford - Clarendon Press, 1884. Holds the Katha, Mundaka, Taittiriyaka, Brihadaranyaka, Svetasvatara, Prasna and Maitrayana Upanishads."
+translator: "F. Max Muller"
+translator_died: 1900
+pd_status_us: "Published 1884, pre-1930 - public domain."
+pd_status_eu: "The Sanskrit originals are anonymous and ancient. Translator F. Max Muller died 1900; 1900 + 70 = 1970, so the translation has been public domain in the EU since 1971."
+source_url: "https://archive.org/details/wg915"
+provenance: verified
+quotes:
+  - "Know the Self to be sitting in the chariot, the body to be the chariot, the intellect the charioteer, and the mind the reins."
+  - "The wise prefers the good to the pleasant, but the fool chooses the pleasant through greed and avarice."
+  - "Rise, awake!... the sharp edge of a razor is difficult to pass over; thus the wise say the path is hard."
+  - "The true prevails, not the untrue."

@@ -150,6 +150,51 @@ def test_shape_c_binds_to_the_line_directly_above(repo: Path) -> None:
     assert "Some earlier line" not in r.stdout
 
 
+def test_composite_epigraph_quotes_the_translation_not_the_romanisation(repo: Path) -> None:
+    """`原文 — *romaji* — "translation" — Author` must yield the TRANSLATION.
+
+    The regression this defends against is subtle and silent. A single regex
+    whose attribution tail runs to end of line matches greedily from the
+    LEFTMOST delimited span, so it hands back the romanisation as the quotation
+    and everything after it as the "attribution". The gate then demands a source
+    for a string nobody ever quoted, and the real sentence goes unchecked.
+    """
+    (repo / "README.md").write_text(CLEAN_README + textwrap.dedent("""\
+
+        > 一日不作、一日不食 — *ichijitsu nasazareba* — "An invented translation with no source." — Some Author (720-814)
+        """), encoding="utf-8")
+    r = run(repo)
+    assert r.returncode == 1
+    assert "An invented translation" in r.stdout, (
+        f"the gate quoted something other than the translation:\n{r.stdout}")
+    assert "ichijitsu" not in r.stdout, (
+        f"the gate treated the romanisation as the quotation:\n{r.stdout}")
+
+
+def test_quotation_containing_an_em_dash_is_not_cut_in_half(repo: Path) -> None:
+    """A quotation may contain an em dash of its own.
+
+    Splitting on the FIRST dash truncates the sentence, and the truncated
+    fragment is no longer delimited end to end — so the line is dropped in
+    silence rather than reported.
+    """
+    (repo / "README.md").write_text(CLEAN_README + textwrap.dedent("""\
+
+        > "An invented sentence — with a dash inside it — and no source." — Some Author (1233)
+        """), encoding="utf-8")
+    r = run(repo)
+    assert r.returncode == 1, f"a quotation with an internal em dash was dropped:\n{r.stdout}"
+    assert "and no source" in r.stdout, r.stdout
+
+
+def test_bold_delimited_quotation_is_checked(repo: Path) -> None:
+    (repo / "README.md").write_text(CLEAN_README + textwrap.dedent("""\
+
+        > **An invented bold maxim that appears in no source file.** — Some Author
+        """), encoding="utf-8")
+    assert run(repo).returncode == 1
+
+
 def test_a_sourced_quotation_in_every_shape_passes(repo: Path) -> None:
     """All three shapes must also be able to come out GREEN.
 

@@ -214,14 +214,43 @@ def _delimited(quote: str) -> bool:
     )
 
 
+# A delimited span followed by an em dash and an attribution running to the end
+# of the line. Used right-to-left, so the span NEAREST the attribution wins.
+# A span delimited end to end. `**bold**` is listed before `*italic*` on
+# purpose: the italic alternative would otherwise match the inner `*bold*` of a
+# bold span and leave a stray asterisk behind.
+_SPAN = re.compile(r'"[^"]*"|“[^”]*”|\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__|_[^_]+_')
+
+# What has to follow that span for it to be a quotation: an em dash, then an
+# attribution running to the end of the line.
+_ATTRIBUTION_TAIL = re.compile(r'^\s[—–]\s*(.+)$')
+
+
 def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
     """Return (line number, quotation, attribution) for attributed quotes.
 
     Three shapes carry an attribution in these repos, and only those three count.
 
-    SHAPE A — a flowing blockquote, delimiter REQUIRED:
+    SHAPE A — a flowing blockquote, delimiter REQUIRED. The quotation is the
+    delimited span NEAREST the attribution, which lets a line carry the original
+    and a romanisation ahead of the translation:
 
         > "…quotation…" — Author, Work (year)
+        > 一日不作、一日不食 — *ichijitsu…* — "…translation…" — Author (dates)
+
+    Scanning right to left matters for two reasons that only show up in real
+    files. A composite epigraph like the second line above has three em dashes,
+    and splitting on the FIRST one makes the quotation the Chinese original and
+    the "attribution" everything after it — so the gate then demands a source
+    for a string that is not the quoted sentence. And a quotation may contain an
+    em dash of its own:
+
+        > "To carry the self forward onto the ten thousand things — that is
+        > delusion." — Dōgen, Genjōkōan (1233)
+
+    Splitting on the first dash cuts that sentence in half and leaves a fragment
+    that is no longer delimited, so the line is silently dropped. Anchoring on
+    the span that closes immediately before the attribution gets both right.
 
     THE DELIMITER IS THE DISCRIMINANT HERE, and it was learned the hard way. The
     first version of this function treated "blockquote containing an em dash" as
@@ -270,6 +299,16 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
     demanding a source for it would make the gate fire on the repo's own
     writing. That distinction is the difference between a gate people keep and
     one they rip out.
+
+    KNOWN BLIND SPOT, named rather than left to be discovered: an UNdelimited
+    quotation in flowing text — a bare haiku on one line with " — Bashō" after
+    it, outside a list and outside the two-line pull-quote form. The Zen
+    edition's CODEX.md carries one. Widening Shape A to cover it means dropping
+    the delimiter requirement in flowing prose, which is exactly the change that
+    made the gate fire on its own README. The line is left uncovered here and
+    the same haiku is covered in PRECEPTS.md and README.md, so its wording is
+    still gate-enforced — but the gate does not see that particular occurrence,
+    and saying so is cheaper than a reader finding out.
     """
     out: list[tuple[int, str, str]] = []
     if not path.exists():
@@ -298,6 +337,28 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
             pending = None
             continue
 
+        if not bullet:
+            # SHAPE A: the delimited span NEAREST the attribution, found by
+            # walking the spans right to left. The scan cannot be done with one
+            # regex whose tail runs to end of line — such a pattern matches
+            # greedily from the LEFTMOST span and swallows every later one, so
+            # on a line reading `原文 — *romaji* — "translation" — Author` it
+            # would hand back the romanisation as the quotation. Measured: that
+            # is exactly what it did to all four Zen epigraphs.
+            quote = attribution = ""
+            for cand in reversed(list(_SPAN.finditer(body))):
+                tail = _ATTRIBUTION_TAIL.match(body[cand.end():])
+                if tail:
+                    quote, attribution = cand.group(0).strip(), tail.group(1).strip()
+                    break
+            if not quote:
+                pending = (n, body)
+                continue
+            pending = None
+            if len(norm(quote)) >= 18:
+                out.append((n, quote, attribution))
+            continue
+
         m = re.search(r"\s[—–]\s*(.+)$", body)
         if not m:
             # No attribution on this line. It may be the quotation half of a
@@ -311,8 +372,6 @@ def extract_quotations(path: Path) -> list[tuple[int, str, str]]:
         pending = None
         if len(norm(quote)) < 18:
             continue                                   # too short to be a claim
-        if not bullet and not _delimited(quote):
-            continue                                   # flowing prose with an em dash
         out.append((n, quote, attribution))
     return out
 

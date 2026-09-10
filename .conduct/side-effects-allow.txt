@@ -1,0 +1,32 @@
+# Allowlist for gate/side_effects.py
+#
+# One entry per line. An entry is a Python regular expression, matched with
+# re.search against two strings per finding:
+#
+#     <path relative to the repo root>
+#     <path>::<check id>
+#
+# so `scripts/` silences a whole directory and `scripts/check\.py::monkey-patch`
+# silences one check in one file and leaves the other five live. A line whose
+# first character is `#` is a comment; `#` does NOT start a trailing comment,
+# because a regex may legitimately contain one.
+#
+# Every suppression is counted and printed on every run, clean or not. An
+# allowlist that grows until it covers everything is the cheap rescue the codex
+# names in DHRITI 3, and it should be visible while it happens.
+#
+# Say WHY. An entry with no reason is indistinguishable from a mistake.
+
+# ---------------------------------------------------------------------------
+# scripts/check.py:38 — `fail()` appends to the module-level FAILURES list.
+#
+# A true finding, not a false positive: the function's effect is real and its
+# signature does not mention it. It is deferred rather than fixed because
+# scripts/check.py is shared VERBATIM by the ten conduct-harness repos — md5
+# 639f3dfb03ab20a3c9941e29fe0ea2d8, identical in all ten, measured 2026-09-10.
+# Rewriting the accumulator here alone would fork that file for one repo's
+# benefit, which is the open-ended fix SHAUCHA 3 says to split out and flag
+# instead of smuggling into a scoped change.
+#
+# The other five checks stay live on this file.
+scripts/check\.py::module-state-write

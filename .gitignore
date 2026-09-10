@@ -2,5 +2,11 @@ node_modules/
 .DS_Store
 *.log
 
+# Residue of running the gate and its suite: bytecode, pytest scratch, and the
+# SARIF the workflow writes into the workspace. None of it belongs in the diff.
+__pycache__/
+.pytest_cache/
+*.sarif
+
 # Keep the repo's own assets/ tracked despite the case-insensitive global /Assets/ ignore (macOS)
 !/assets/

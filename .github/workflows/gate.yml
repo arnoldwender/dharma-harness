@@ -1,0 +1,74 @@
+name: gate
+
+# The Dharma Harness runs its own falsifier on every push. A codex whose SHAUCHA
+# axis is "ship no residue" cannot ship a rule nobody can test — so the rule that
+# CAN be tested is tested here, and the README says plainly which ones cannot.
+#
+# No step interpolates untrusted input into a shell. The only expressions in this
+# file are `github.workflow` / `github.ref` inside `concurrency:` and
+# `github.event_name` inside an `if:`. None of the three reaches a `run:`, and
+# none of them is attacker-controlled text (an issue title, a branch name, a
+# commit message). Keep it that way: anything from `github.event.*` belongs in
+# `env:` and is read as "$VAR", never pasted into a shell line.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push on the same branch cancels the previous run: without this a burst
+  # of commits pays for N runs and only the last one matters.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  side-effects:
+    name: side-effect gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The gate diffs against the merge base. At the default depth of 1
+          # there is no merge base to find and the gate exits 2 — correctly, and
+          # uselessly.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Self-check (the repo keeps its own promises)
+        run: python3 scripts/check.py
+
+      - name: Side-effect gate, on the diff
+        if: github.event_name == 'pull_request'
+        run: python3 gate/side_effects.py --base origin/main
+
+      - name: Side-effect gate, whole tree
+        # On a push to main the diff against origin/main is empty, and a gate
+        # that judged nothing reports clean. Scanning every tracked Python file
+        # keeps the green badge attached to something.
+        run: python3 gate/side_effects.py --files $(git ls-files '*.py') --sarif side-effects.sarif
+
+      - name: Mutation check (do the tests defend the gate?)
+        run: python3 tests/mutation_check.py
+
+      - name: Tests
+        run: python3 -m pytest tests/ -q
+
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: side-effects-sarif
+          path: side-effects.sarif
+          if-no-files-found: ignore

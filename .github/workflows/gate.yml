@@ -49,11 +49,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        # pyyaml is for the citation gate. It is not required — the gate ships a
-        # minimal parser for the shape sources/*.yml actually uses — but CI runs
-        # the library path so the fallback is a fallback and not the only path
-        # anyone ever exercises.
-        run: python -m pip install --upgrade pip pytest pyyaml
+        run: python -m pip install --upgrade pip pytest
 
       - name: Self-check (the repo keeps its own promises)
         run: python3 scripts/check.py

@@ -429,3 +429,76 @@ def test_sarif_is_written_and_well_formed(repo: Path, tmp_path: Path) -> None:
     assert doc["version"] == "2.1.0"
     assert doc["runs"][0]["results"], "SARIF carries no results for a failing run"
     assert doc["runs"][0]["results"][0]["ruleId"] == "unsourced-quote"
+
+def test_a_table_row_inside_a_blockquote_is_not_a_quotation(repo: Path) -> None:
+    """The regression that shipped: the copyright table fired the gate.
+
+    The Bushido edition documents its own provenance in a markdown table nested
+    in a blockquote. Every row arrives at the extractor looking like blockquote
+    prose, and a cell reading `**not in the EU until 2029** — Giles died 1958`
+    has exactly the shape Shape A hunts for: a delimited span closing right
+    before an em dash and an attribution.
+
+    Two findings, both false, both inside the table that exists precisely to be
+    honest about provenance. A gate that fires on the honesty section teaches
+    people to delete the honesty section.
+    """
+    (repo / "README.md").write_text(CLEAN_README + textwrap.dedent("""\
+
+        > | Lines | English | Status |
+        > | --- | --- | --- |
+        > | 2 x Sun Tzu | Lionel Giles, 1910 | **not in the EU until 2029** — Giles died 1958 |
+        > | Lao Tzu | James Legge, 1891 | **public domain everywhere** — Legge died 1897 |
+        """), encoding="utf-8")
+    r = run(repo)
+    assert r.returncode == 0, f"the gate fired on a provenance table:\n{r.stdout}"
+
+
+def test_the_gate_still_bites_next_to_a_table(repo: Path) -> None:
+    """The other half: skipping tables must not skip real citations near them."""
+    (repo / "README.md").write_text(CLEAN_README + textwrap.dedent("""\
+
+        > | Lines | Status |
+        > | --- | --- |
+        > | 1 | **fine** — nobody |
+
+        > *A line nobody ever wrote, planted to test the gate.* — Francis Bacon
+        """), encoding="utf-8")
+    r = run(repo)
+    assert r.returncode == 1
+    assert "unsourced-quote" in r.stdout
+
+def test_a_new_markdown_document_is_covered_without_touching_code(repo: Path) -> None:
+    """Discovery, not a list. The list is what made the gate blind.
+
+    Measured across the family: one hardcoded list or another skipped MAXIMS.md,
+    BLESSING.md, REFERENCE.md and LAWS.md — 26 attributed lines in total,
+    reported as a clean pass by a gate that never opened the file they were in.
+    """
+    (repo / "NEWDOC.md").write_text(
+        '> *A line nobody ever wrote, planted in a brand new file.* \u2014 Francis Bacon\n',
+        encoding="utf-8")
+    r = run(repo)
+    assert r.returncode == 1, "a new document was not discovered"
+    assert "NEWDOC.md" in r.stdout
+
+
+def test_boilerplate_documents_stay_out_of_scope(repo: Path) -> None:
+    """Discovery must not mean scanning the licence text for quotations."""
+    (repo / "CODE_OF_CONDUCT.md").write_text(
+        '> *A line nobody ever wrote, in boilerplate.* \u2014 Francis Bacon\n',
+        encoding="utf-8")
+    assert run(repo).returncode == 0
+
+
+def test_the_run_declares_which_documents_it_read(repo: Path) -> None:
+    """The line this gate spent a day earning.
+
+    Zero findings over zero coverage prints identically to zero findings over
+    full coverage, and the reader cannot tell them apart. So the run says which
+    documents it opened and how many attributed lines it found in each.
+    """
+    r = run(repo)
+    assert r.returncode == 0
+    assert "read " in r.stdout and "document(s)" in r.stdout
+    assert "README.md=" in r.stdout, f"coverage not reported per file:\n{r.stdout}"

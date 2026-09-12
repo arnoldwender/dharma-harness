@@ -42,7 +42,7 @@ GATE = ROOT / "gate" / "citations.py"
 # cannot collide with a `def` line or a docstring mention of the same name.
 MUTANTS = [
     ("CHECK 1 unsourced-quote",
-     "checked, quote_findings = check_quotes_resolve(sources)",
+     "coverage, quote_findings = check_quotes_resolve(sources)",
      "checked, quote_findings = 0, []"),
     ("CHECK 2 incomplete-provenance",
      "findings += check_provenance_complete(sources)",

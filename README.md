@@ -96,6 +96,10 @@ The Sanskrit names are **load-bearing mnemonics, not mysticism**. The discipline
 - **Or wire the hook.** [`hooks/session-start.sh`](hooks/session-start.sh) emits the first
   word and the conduct block at the top of every session — see [hooks/](hooks/). Every
   session, and every subagent it spawns, inherits it.
+- **Or install it as an Agent Skill.** [`SKILL.md`](SKILL.md) packages the same block in the
+  [Agent Skills](https://agentskills.io/specification) format: clone this repository into your
+  agent's skills directory as `dharma-harness/` (the directory name must match the skill name).
+  Verified on Claude Code 2.1.273 (2026-09-17); other hosts that read the format were not run.
 - **Always active; intensity scales with the stakes.** A one-line rename runs the codex
   light. A schema migration, a force-push, a delete runs it at full weight.
 

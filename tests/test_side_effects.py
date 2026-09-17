@@ -15,6 +15,7 @@ leave the contract untested.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -301,6 +302,40 @@ def test_main_guard_passes(repo: Path) -> None:
     assert result.returncode == 0, result.stdout
 
 
+def test_the_top_level_of_a_program_passes(repo: Path) -> None:
+    """A Python shebang with no `__main__` guard declares a program, not a module: its
+    top level is the body, and nobody imports it. Measured over 6,633 real Write and
+    Edit calls before this test existed: one-off scripts written whole were 87 % of what
+    this check reported, every one of them a false positive of the check's premise."""
+    source = "#!/usr/bin/env python3\nimport os\n\nos.makedirs('/tmp/x')\nprint('done')\n"
+    result = check(repo, source)
+    assert result.returncode == 0, result.stdout
+
+
+def test_a_shebang_file_with_a_main_guard_is_still_a_module(repo: Path) -> None:
+    """The guard says the file can also be imported, and then what sits outside it acts
+    at import time again. The exemption reads the declaration, not the shebang alone."""
+    source = ("#!/usr/bin/env python3\nimport os\n\nos.makedirs('/tmp/x')\n\n\n"
+              "def main():\n    return 0\n\n\nif __name__ == '__main__':\n    main()\n")
+    result = check(repo, source)
+    assert result.returncode == 1, result.stdout
+    assert "import-time-effect" in result.stdout
+
+
+@pytest.mark.parametrize("first", ["# a comment\n#!/usr/bin/env python3\n", "#!/bin/sh\n"])
+def test_only_a_python_shebang_on_the_first_line_declares_a_program(repo: Path, first: str) -> None:
+    result = check(repo, first + "import os\n\nos.makedirs('/tmp/x')\n")
+    assert result.returncode == 1, result.stdout
+    assert "import-time-effect" in result.stdout
+
+
+def test_the_other_checks_still_run_on_a_program(repo: Path) -> None:
+    """The exemption is check 5's alone. A program that mutates its argument is not clean."""
+    result = check(repo, "#!/usr/bin/env python3\n\n\ndef f(xs):\n    xs.append(1)\n\n\nf([])\n")
+    assert result.returncode == 1, result.stdout
+    assert "mutated-argument" in result.stdout and "import-time-effect" not in result.stdout
+
+
 # --- CHECK 6: monkey-patching -------------------------------------------------
 
 def test_patching_an_imported_module_is_caught(repo: Path) -> None:
@@ -393,6 +428,25 @@ def test_unreadable_allowlist_entry_is_reported(repo: Path) -> None:
     result = check(repo, CLEAN)
     assert result.returncode == 1, result.stdout
     assert "bad-allow-pattern" in result.stdout
+
+
+# --- the seam the live hook imports ------------------------------------------
+
+def test_the_names_the_live_hook_imports_exist(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """hooks/side-effects-before-write.py imports the gate by path and reads exactly
+    these: the suffix scope and the judgement of a module's TEXT. If either goes, the
+    hook fails open and reports nothing — which looks exactly like clean work."""
+    monkeypatch.setenv("HARNESS_ROOT", str(repo))
+    spec = importlib.util.spec_from_file_location("side_effects_gate_seam", GATE)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    assert mod.SCANNED_SUFFIXES == frozenset({".py"})
+    findings, parsed = mod.analyse_source("def f(:\n", "x.py")
+    assert not parsed and [f.check for f in findings] == ["unparseable"]
+    findings, parsed = mod.analyse_source("def f(xs):\n    xs.append(1)\n", "x.py")
+    assert parsed and [f.check for f in findings] == ["mutated-argument"]
+    assert mod.analyse_source("#!/usr/bin/env python3\nprint(1)\n", "x.py") == ([], True)
 
 
 # --- SARIF --------------------------------------------------------------------

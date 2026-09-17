@@ -96,6 +96,10 @@ The Sanskrit names are **load-bearing mnemonics, not mysticism**. The discipline
 - **Or wire the hook.** [`hooks/session-start.sh`](hooks/session-start.sh) emits the first
   word and the conduct block at the top of every session — see [hooks/](hooks/). Every
   session, and every subagent it spawns, inherits it.
+- **And the live one.** [`hooks/side-effects-before-write.py`](hooks/side-effects-before-write.py)
+  runs the gate on every `Edit` and `Write` before it lands and warns the agent when the
+  change adds an effect the function's signature does not declare — see [hooks/](hooks/) and
+  *Live, before the effect lands* below.
 - **Or install it as an Agent Skill.** [`SKILL.md`](SKILL.md) packages the same block in the
   [Agent Skills](https://agentskills.io/specification) format: clone this repository into your
   agent's skills directory as `dharma-harness/` (the directory name must match the skill name).
@@ -167,7 +171,7 @@ can, and that is the whole difference between this and a linter rule.
 | `mutable-default` | `def f(xs=[])`, `def f(d={})`, `def f(s=set())`, `list()` / `dict()` / `defaultdict()` as a default | `def f(xs=None)`; a dataclass `field(default_factory=list)` |
 | `module-state-write` | `global X` then `X = …`; `CACHE[k] = v`; `SEEN.append(x)` on a module-level object | reading module state; a local that shadows a module name |
 | `impure-declared-pure` | `open` / `print` / `requests.` / `subprocess.` / `os.environ[…] =` / a file write inside a function marked `@pure`, `@cache`, `@lru_cache`, or whose docstring says *pure* / *no side effects* | the same calls in a function that never claimed to be a value |
-| `import-time-effect` | a bare call at module level; `requests.get(…)`, `os.makedirs(…)`, `load_dotenv()`, a DB `connect(…)` bound at import — including inside a top-level `try:` | definitions, imports, plain constants, and anything under `if __name__ == "__main__":` |
+| `import-time-effect` | a bare call at module level; `requests.get(…)`, `os.makedirs(…)`, `load_dotenv()`, a DB `connect(…)` bound at import — including inside a top-level `try:` | definitions, imports, plain constants, anything under `if __name__ == "__main__":`, and the whole top level of a **program** — a file whose first line is a Python shebang and that has no `__main__` guard: it declared that it is run, not imported |
 | `monkey-patch` | `somemodule.func = …`, `setattr(somemodule, …)` on an **imported** name | attribute writes on an object the function itself made |
 
 **What it will not catch**, named here rather than left for you to find out: an
@@ -197,6 +201,71 @@ and nothing else. [`tests/mutation_check.py`](tests/mutation_check.py) then
 deletes each check in turn and requires the suite to go red; a test that still
 passes with the mechanism removed was never testing the mechanism. Both run in
 [`.github/workflows/gate.yml`](.github/workflows/gate.yml) on every push.
+
+### Live, before the effect lands — `hooks/side-effects-before-write.py`
+
+The gate reads a diff, in CI, after the commit. That is the right shape for a
+verdict and the wrong shape for a correction: by the time it runs, the
+`xs.append(1)` on a parameter has been written, the suite that passes alone
+and fails together has been run, and the summary that read "green" has been
+sent. *Śauca* is broken at the moment of the act — and the effect nobody wrote
+down lands in the running process, not in the diff, which is why the diff
+reviewer does not see it — so the same gate also runs as a Claude Code
+`PreToolUse` hook on `Edit`, `Write` and `MultiEdit`, against that one change,
+with the session's working directory as its root: the same six checks, the
+same allowlist. The change is **simulated** first — the file as it will be
+after the edit, whole, because the gate parses a module and an indented
+fragment on its own is an `IndentationError`, not a finding — and only the
+**delta** is reported: the findings the result carries that the file on disk
+did not, by check and message rather than by line, so what you found is never
+charged as what you added. If the change adds an effect the signature does not
+declare, the agent reads the finding **in the tool result**, and the change
+goes through:
+
+> side-effects: this change leaves an effect its signature does not declare. [mutated-argument]
+> `subject.py`:2: add_one(): `items.append(...)` mutates a received argument — the caller keeps
+> that object and its signature promises nothing of the sort; return a new value instead.
+> Shaucha 4: no residue — read past the diff, the effect a signature does not admit to is
+> residue left in the running process. Declare it in the name and the docstring, return a new
+> value instead, or move the effect behind a function the caller invokes on purpose; a
+> justified exception goes in .conduct/side-effects-allow.txt with its reason. Warning mode:
+> this change is NOT blocked.
+
+Warning, not blocking, on purpose — and that is *satya* applied to the hook
+itself: a guard whose false-positive rate nobody has measured on real sessions
+is switched off by the first person it wrongly stops, and a hook that is
+switched off reports nothing forever, which looks exactly like clean work. So
+the hook fails open too: any error of its own is a receipt with `verdict:
+error` and exit 0, counted and never silent. Every run leaves a receipt
+(verdict, checks, counts — never a line of the file), so the rate is a number
+over your own sessions rather than a claim in this README.
+`SIDE_EFFECTS_HOOK_MODE=block` exists for whoever has measured theirs. Wiring,
+receipts and the limits it states in [hooks/](hooks/); 50 tests and 9 mutants,
+each mutant killed, plus an end-to-end smoke on the runtime's own payload
+shape, in [`tests/`](tests/).
+
+**Measured before it shipped, over 80 recorded sessions on one machine** —
+the hook's own `judge` replayed over every real `Edit` and `Write` in the
+transcripts, which is the number the receipts would have produced: 4,960
+replayable calls, 27 warned (0.54 %) in 11 sessions, 0 errors of the hook's
+own (13,308 edits could not be replayed because the file has since changed
+underneath them). The measurement changed one thing before this landed, in
+the **gate** and not in the hook, and in the direction of reading a
+declaration it had been ignoring rather than of a lowered bar: a file whose
+first line is a Python shebang and that carries no `__main__` guard is a
+program, its top level is the program, and `import-time-effect` now stays
+quiet on it — over the 6,633 replayable calls of the first pass, one-off
+scripts written whole were 87 % of everything that check reported (352 of
+402 findings), and none of them is ever imported. The exemption arrived with
+its tests and its mutant. What remains is dominated by the same shape without
+the declaration — a script whose top level is its body and that never said so
+(11 of the 27 warned calls, eight of them one file rewritten in a single
+session), which the gate cannot tell from a module and therefore does not —
+and by `module-state-write` on module-level guards and accumulators in
+throwaway scripts (8 of 27), true by the gate's definition. The two windows
+differ because the 80 most recent transcripts moved between the passes on a
+machine with sessions running; whether any of the 27 is worth acting on is a
+question the receipts answer, not this README.
 
 ---
 
@@ -242,9 +311,9 @@ prints the count on every run precisely so a pile of them cannot grow unwatched.
 
 ## Status
 
-Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**, and two pieces have landed: the side-effect gate and the citation gate above.
+Early but real. The four disciplines and their falsifiers are stable and in use, and the codex is always-on. The precept emitter and the session-start hook run today. The **wiring ships incrementally**, and three pieces have landed: the side-effect gate, the same gate live as a `PreToolUse` hook on every `Edit` and `Write` before the change lands ([`hooks/side-effects-before-write.py`](hooks/side-effects-before-write.py), warning mode), and the citation gate above.
 
-**What the side-effect gate automates, stated exactly.** One axis, and only part of it: शौच — what you leave behind — carried from the residue a diff leaves in the tree to the residue a call leaves in the running process. It does **not** decide any of the four numbered *śauca* falsifiers as written: whether a cleanup outgrew its task, whether the dependents of an edited symbol were traced, whether a growing fix was split out, whether a debug print survived. Those are read off a diff by a person.
+**What the side-effect gate automates, stated exactly.** One axis, and only part of it: शौच — what you leave behind — carried from the residue a diff leaves in the tree to the residue a call leaves in the running process. It does **not** decide any of the four numbered *śauca* falsifiers as written: whether a cleanup outgrew its task, whether the dependents of an edited symbol were traced, whether a growing fix was split out, whether a debug print survived. Those are read off a diff by a person. The live hook automates exactly the same and no more — the six checks, at the moment of the edit, on the delta the edit introduces — and it cites *śauca* 4 in its warning as the rule read past the diff, not as a falsifier it decides.
 
 **What the citation gate automates, stated exactly.** Part of one rule: सत्य 4, "invent nothing," and only the *citation* clause of it. It decides whether a quoted line traces to a documented source. It decides nothing about a fabricated file path, a benchmark that was never run, or a result asserted without a gate — the rest of that same rule. And it does **nothing** for विवेक or धृति, nor for सत्य rules 1–3: no check here can see whether "done" was claimed with no gate output, whether a report omitted a known failure, or whether a test was silenced to buy green. Those remain behavior, hand-checked. The other planned checks — an irreversibility guard for *viveka*, a gate-vs-claim diff for the rest of *satya*, a half-done detector for *dhṛti* — are not written.
 

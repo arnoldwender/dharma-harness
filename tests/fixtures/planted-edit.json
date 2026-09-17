@@ -1,0 +1,14 @@
+{
+  "session_id": "smoke",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_use_id": "toolu_smoke",
+  "tool_input": {
+    "file_path": "subject.py",
+    "old_string": "    return [*items, 1]\n",
+    "new_string": "    items.append(1)\n    return items\n"
+  },
+  "plant": {
+    "subject.py": "def add_one(items):\n    return [*items, 1]\n"
+  }
+}

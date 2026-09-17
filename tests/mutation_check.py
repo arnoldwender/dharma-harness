@@ -26,10 +26,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GATE = ROOT / "gate" / "side_effects.py"
 
-# (name, the exact call in analyse_tree() to neuter, what to leave behind)
+# (name, the exact text in the gate to neuter[, what to leave behind — `pass` if omitted])
 #
 # The call strings carry their arguments so they cannot collide with the `def`
-# line, which is annotated and therefore spelled differently.
+# line, which is annotated and therefore spelled differently. An entry with a
+# third element neuters an exemption rather than a check: the text that stays
+# quiet on purpose must be defended too, or the next edit removes it unnoticed.
 MUTANTS = [
     ("CHECK 1 mutated-argument",
      "findings.extend(check_mutated_arguments(tree, rel, info))"),
@@ -41,6 +43,9 @@ MUTANTS = [
      "findings.extend(check_impure_declared_pure(tree, rel, info))"),
     ("CHECK 5 import-time-effect",
      "findings.extend(check_import_time_effects(tree, rel, info))"),
+    ("CHECK 5 a program (shebang, no __main__ guard) is judged as a module",
+     "    if info.program:\n        return out",
+     "    if False:\n        return out"),
     ("CHECK 6 monkey-patch",
      "findings.extend(check_monkey_patching(tree, rel, info))"),
 ]
@@ -63,13 +68,13 @@ def main() -> int:
 
     survivors: list[str] = []
     try:
-        for name, call in MUTANTS:
-            if call not in original:
-                print(f"  ?? {name}: call not found in the gate — the mutation list "
-                      f"is stale, which means this script is measuring nothing")
+        for name, call, *rest in MUTANTS:
+            if original.count(call) != 1:
+                print(f"  ?? {name}: text appears {original.count(call)} times in the gate "
+                      f"— the mutation list is stale, which means this script is measuring nothing")
                 survivors.append(f"{name} (stale)")
                 continue
-            GATE.write_text(original.replace(call, "pass", 1), encoding="utf-8")
+            GATE.write_text(original.replace(call, rest[0] if rest else "pass", 1), encoding="utf-8")
             if run_suite():
                 print(f"  SURVIVED  {name} — removed it and the suite stayed green")
                 survivors.append(name)

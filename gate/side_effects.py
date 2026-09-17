@@ -67,6 +67,10 @@ from typing import Any
 ROOT = Path(os.environ.get("HARNESS_ROOT") or Path(__file__).resolve().parent.parent)
 ALLOWLIST = ROOT / ".conduct" / "side-effects-allow.txt"
 
+# The one definition of what this gate reads. The live hook imports it rather
+# than restating it, so the two can never disagree about a suffix.
+SCANNED_SUFFIXES = frozenset({".py"})
+
 FUNCS = (ast.FunctionDef, ast.AsyncFunctionDef)
 SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
@@ -124,9 +128,11 @@ class Finding:
 
 @dataclass
 class ModuleInfo:
-    """What the module level binds, so a function's writes can be placed."""
+    """What the module level binds, so a function's writes can be placed — and
+    whether the file declares itself a program rather than a module."""
     imported: set[str] = field(default_factory=set)
     module_names: set[str] = field(default_factory=set)
+    program: bool = False
 
 
 # --- AST helpers -------------------------------------------------------------
@@ -321,6 +327,27 @@ def _top_level_statements(tree: ast.Module) -> Iterator[ast.stmt]:
 
 def _is_main_guard(node: ast.If) -> bool:
     return any(isinstance(n, ast.Name) and n.id == "__name__" for n in ast.walk(node.test))
+
+
+# A first line that says the file is handed to a Python interpreter, not imported.
+SHEBANG = re.compile(r"^#!.*\bpython")
+
+
+def is_program(source: str, tree: ast.Module) -> bool:
+    """True for a file whose first line is a Python shebang and whose top level
+    carries no `if __name__ == "__main__":` guard.
+
+    Such a file is a program: its top level IS the body, and the shebang is the
+    declaration that it is run rather than imported — the same declaration the
+    guard makes, made the older way. The guard changes the reading: it says the
+    file can also be imported, and then whatever sits outside it acts at import
+    time again. Measured before this line existed, over 6,633 real `Write` and
+    `Edit` calls: one-off scripts written whole were 87 % of what the
+    import-time check reported, and none of them was ever imported.
+    """
+    if not SHEBANG.match(source.split("\n", 1)[0]):
+        return False
+    return not any(isinstance(s, ast.If) and _is_main_guard(s) for s in tree.body)
 
 
 def _effectful_call(call: ast.Call) -> str | None:
@@ -572,8 +599,14 @@ def check_import_time_effects(tree: ast.Module, rel: str, info: ModuleInfo) -> l
     An import is supposed to be a definition, and a reader treats it as one. A
     network call, a `makedirs`, a `load_dotenv()` or a database connection at
     module level turns `import x` into an action with no call site to blame.
+
+    A program is not a module. A file that opens with a Python shebang and has
+    no `__main__` guard has declared that its top level is run, not imported,
+    and the check stays quiet on it — see `is_program` for the measurement.
     """
     out: list[Finding] = []
+    if info.program:
+        return out
     for node in _top_level_statements(tree):
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
             called = _dotted(node.value.func) or getattr(node.value.func, "attr", "a call")
@@ -628,8 +661,11 @@ def check_monkey_patching(tree: ast.Module, rel: str, info: ModuleInfo) -> list[
 
 # --- driver ------------------------------------------------------------------
 
-def analyse_tree(tree: ast.Module, rel: str) -> list[Finding]:
+def analyse_tree(tree: ast.Module, rel: str, source: str = "") -> list[Finding]:
+    """The six checks on one parsed module. `source` is the text the tree came
+    from; the shebang lives there and not in the tree."""
     info = scan_module(tree)
+    info.program = is_program(source, tree)
     findings: list[Finding] = []
     findings.extend(check_mutated_arguments(tree, rel, info))
     findings.extend(check_mutable_defaults(tree, rel, info))
@@ -647,13 +683,32 @@ def relative(path: Path) -> str:
         return str(path)
 
 
+def analyse_source(source: str, rel: str, filename: str = "<source>") -> tuple[list[Finding], bool]:
+    """The six checks on one module's TEXT: (findings, parsed).
+
+    Split out of `analyse` so the live hook can judge a file as it WILL be after
+    an edit — text it holds in memory, not a path on disk — through the same
+    parse and the same treatment of a file that does not parse.
+    """
+    try:
+        tree = ast.parse(source, filename=filename)
+    except SyntaxError as exc:
+        # Reported, not raised: one unparseable file must not stop the gate
+        # from judging the rest of the diff, and must not read as clean either.
+        return [Finding(
+            "unparseable",
+            f"{rel}: will not parse ({exc.msg}) — nothing can be cleared in a "
+            f"file the gate could not read", rel, exc.lineno or 1)], False
+    return analyse_tree(tree, rel, source), True
+
+
 def analyse(paths: list[Path]) -> tuple[list[Finding], int, int]:
     """Returns (findings, python files analysed, other files skipped)."""
     findings: list[Finding] = []
     analysed = skipped = 0
     for path in paths:
         rel = relative(path)
-        if path.suffix != ".py":
+        if path.suffix not in SCANNED_SUFFIXES:
             skipped += 1
             continue
         try:
@@ -667,18 +722,9 @@ def analyse(paths: list[Path]) -> tuple[list[Finding], int, int]:
         except OSError as exc:
             findings.append(Finding("unreadable", f"{rel}: {exc}", rel))
             continue
-        try:
-            tree = ast.parse(source, filename=str(path))
-        except SyntaxError as exc:
-            # Reported, not raised: one unparseable file must not stop the gate
-            # from judging the rest of the diff, and must not read as clean either.
-            findings.append(Finding(
-                "unparseable",
-                f"{rel}: will not parse ({exc.msg}) — nothing can be cleared in a "
-                f"file the gate could not read", rel, exc.lineno or 1))
-            continue
-        analysed += 1
-        findings.extend(analyse_tree(tree, rel))
+        found, parsed = analyse_source(source, rel, str(path))
+        analysed += parsed
+        findings.extend(found)
     return findings, analysed, skipped
 
 
